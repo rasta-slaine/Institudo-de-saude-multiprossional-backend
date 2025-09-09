@@ -47,27 +47,30 @@ app.post(
 
       // Email de agradecimento ao usuário
       await transporter.sendMail({
-        from: `"Instituto de Saúde" <${process.env.SMTP_USER}>`,
+        from: `"Instituto de Saúde Multiprofissional" <${process.env.SMTP_USER}>`,
         to: body.email,
-        subject: "Confirmação de inscrição",
-        text: `Olá ${body.nome_completo},\n\nRecebemos sua inscrição com sucesso!`,
+        subject: "Confirmação de Inscrição - Premio Dr Dacio Campos",
+        text: `Olá ${body.nome_completo},\n\nRecebemos sua inscrição com sucesso!
+        
+         Em breve entraremos em contato.\n\nAtenciosamente,\nInstituto de Saúde Multiprofissional`,
       });
 
       // Email para equipe com dados + anexos
       await transporter.sendMail({
-        from: `"Instituto de Saúde" <${process.env.SMTP_USER}>`,
+        from: `"Instituto de Saúde Multiprofissional" <${process.env.SMTP_USER}>`,
         to: "institutodesaudemultiprofissio@gmail.com", // substitua pelo e-mail da equipe
-        subject: `Nova inscrição: ${body.nome_completo}`,
+        subject: `Premio Dr Dacio Campos Nova Inscrição Recebida: : ${body.nome_completo}`,
         text: `
-Nome: ${body.nome_completo}
-Email: ${body.email}
-Telefone: ${body.telefone}
-Instituição: ${body.instituicao}
-Cargo/Função: ${body.cargo_funcao}
-Título da pesquisa: ${body.titulo_pesquisa}
-Categoria: ${body.categoria_pesquisa}
-Coautores: ${body.coautores}
-Resumo: ${body.resumo_pesquisa}
+         Dados do Participante:
+         Nome: ${body.nome_completo}
+         Email: ${body.email}
+         Telefone: ${body.telefone}
+         Instituição: ${body.instituicao}
+         Cargo/Função: ${body.cargo_funcao}
+         Título da pesquisa: ${body.titulo_pesquisa}
+         Categoria: ${body.categoria_pesquisa}
+         Coautores: ${body.coautores}
+         Resumo: ${body.resumo_pesquisa}
         `,
         attachments: [
           {
