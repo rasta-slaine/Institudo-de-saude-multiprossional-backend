@@ -1,32 +1,18 @@
 import express from "express";
 import multer from "multer";
 import nodemailer from "nodemailer";
-import cors from "cors";
-import fs from "fs";
-import path from "path";
 import dotenv from "dotenv";
 
 dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Configuração do multer (uploads)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname.replace(/\s/g, "_"));
-  },
-});
+// Multer: usa memória para armazenar arquivos temporariamente
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// Endpoint para receber formulário
+app.use(express.json());
+
+// Rota do formulário
 app.post(
   "/submit",
   upload.fields([
@@ -36,13 +22,21 @@ app.post(
   ]),
   async (req, res) => {
     try {
-      const data = req.body;
       const files = req.files;
+      const body = req.body;
 
-      console.log("📩 Dados recebidos:", data);
-      console.log("📎 Arquivos recebidos:", files);
+      if (
+        !files ||
+        !files.documento_pesquisa ||
+        !files.curriculo ||
+        !files.declaracao_orientador
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Todos os arquivos são obrigatórios." });
+      }
 
-      // Transporter do Nodemailer
+      // --- Configuração do Nodemailer ---
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -51,52 +45,56 @@ app.post(
         },
       });
 
-      // 📧 Email para o usuário (confirmação)
+      // Email de agradecimento ao usuário
       await transporter.sendMail({
-        from: `"BioIn - Inscrição" <${process.env.SMTP_USER}>`,
-        to: data.email,
-        subject: "Confirmação de Inscrição - BioIn",
-        text: `Olá ${data.nome_completo}, recebemos sua inscrição com sucesso!`,
+        from: `"Instituto de Saúde" <${process.env.SMTP_USER}>`,
+        to: body.email,
+        subject: "Confirmação de inscrição",
+        text: `Olá ${body.nome_completo},\n\nRecebemos sua inscrição com sucesso!`,
       });
 
-      // 📧 Email para a equipe com anexos
-      const attachments = [];
-      if (files.documento_pesquisa) {
-        attachments.push({ path: files.documento_pesquisa[0].path });
-      }
-      if (files.curriculo) {
-        attachments.push({ path: files.curriculo[0].path });
-      }
-      if (files.declaracao_orientador) {
-        attachments.push({ path: files.declaracao_orientador[0].path });
-      }
-
+      // Email para equipe com dados + anexos
       await transporter.sendMail({
-        from: `"BioIn - Sistema" <${process.env.SMTP_USER}>`,
-        to: "institutodesaudemultiprofissio@gmail.com", // 👉 Trocar pelo email real da equipe
-        subject: "Nova Inscrição Recebida",
+        from: `"Instituto de Saúde" <${process.env.SMTP_USER}>`,
+        to: "institutodesaudemultiprofissio@gmail.com", // substitua pelo e-mail da equipe
+        subject: `Nova inscrição: ${body.nome_completo}`,
         text: `
-          Nome: ${data.nome_completo}
-          Email: ${data.email}
-          Telefone: ${data.telefone}
-          Instituição: ${data.instituicao}
-          Cargo/Função: ${data.cargo_funcao}
-          Título da Pesquisa: ${data.titulo_pesquisa}
-          Categoria: ${data.categoria_pesquisa}
-          Coautores: ${data.coautores}
-          Resumo: ${data.resumo_pesquisa}
+Nome: ${body.nome_completo}
+Email: ${body.email}
+Telefone: ${body.telefone}
+Instituição: ${body.instituicao}
+Cargo/Função: ${body.cargo_funcao}
+Título da pesquisa: ${body.titulo_pesquisa}
+Categoria: ${body.categoria_pesquisa}
+Coautores: ${body.coautores}
+Resumo: ${body.resumo_pesquisa}
         `,
-        attachments,
+        attachments: [
+          {
+            filename: files.documento_pesquisa[0].originalname,
+            content: files.documento_pesquisa[0].buffer,
+          },
+          {
+            filename: files.curriculo[0].originalname,
+            content: files.curriculo[0].buffer,
+          },
+          {
+            filename: files.declaracao_orientador[0].originalname,
+            content: files.declaracao_orientador[0].buffer,
+          },
+        ],
       });
 
-      res.json({ message: "Inscrição enviada com sucesso!" });
-    } catch (error) {
-      console.error("❌ Erro:", error);
-      res.status(500).json({ error: "Erro ao processar inscrição" });
+      return res.json({
+        success: true,
+        message: "Inscrição enviada com sucesso!",
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Erro ao processar inscrição." });
     }
   }
 );
 
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
